@@ -12,8 +12,8 @@ pipeline {
             steps {
                 echo "🔍 Verifying required project files..."
                 sh '''
-                    test -f index.html || (echo "❌ Missing index.html" && exit 1)
-                    test -f netlify/functions/quote.js || (echo "❌ Missing quote function" && exit 1)
+                    [ -f index.html ] || { echo "❌ ERROR: index.html missing!"; exit 1; }
+                    [ -f netlify/functions/quote.js ] || { echo "❌ ERROR: quote.js missing!"; exit 1; }
                     echo "✅ All required files are present."
                 '''
             }
@@ -33,14 +33,25 @@ pipeline {
             agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
                 echo "🚀 Starting deployment..."
-                retry(2) {
-                    sh '''
-                        npx netlify deploy \
-                          --auth=$NETLIFY_AUTH_TOKEN \
-                          --site=$NETLIFY_SITE_ID \
-                          --dir=. \
-                          --prod
-                    '''
+                sh '''
+                    npm install -g netlify-cli
+                    netlify deploy \
+                      --auth=$NETLIFY_AUTH_TOKEN \
+                      --site=$NETLIFY_SITE_ID \
+                      --dir=. \
+                      --prod
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                echo "🔍 Performing post-deploy health check..."
+                script {
+                    def responseCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' https://enchanting-syrniki-b30d56.netlify.app", returnStdout: true).trim()
+                    if (responseCode != '200') {
+                        error "❌ Health check failed! Got HTTP status: ${responseCode}"
+                    }
                 }
             }
         }
@@ -48,16 +59,10 @@ pipeline {
 
     post {
         success {
-            script {
-                echo "🎉 Deployment successful! Your app is live."
-                slackSend channel: '#deployments', message: "✅ Deployment successful! 🚀"
-            }
+            echo "🎉 Deployment successful! Your app is live."
         }
         failure {
-            script {
-                echo "🚨 Deployment failed. Please check logs for more details."
-                slackSend channel: '#deployments', message: "❌ Deployment failed! Check logs."
-            }
+            echo "🚨 Deployment failed. Please check logs for more details."
         }
     }
 }

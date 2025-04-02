@@ -1,14 +1,8 @@
-export default [
+module.exports = [
     {
-      ignores: ["node_modules/**"],
-    },
-    {
-      languageOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-      },
+      files: ["*.js"],
       rules: {
-        ...require("eslint/conf/eslint-recommended"),
+        semi: ["error", "always"],
       },
     },
   ];

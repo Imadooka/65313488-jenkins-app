@@ -1,4 +1,4 @@
-pipeline { 
+pipeline {
     agent any
 
     environment {
@@ -49,8 +49,8 @@ pipeline {
             steps {
                 echo "🚀 Deploying to Netlify..."
                 sh '''
-                    npm install --unsafe-perm -g netlify-cli
-                    netlify deploy \
+                    npm install netlify-cli
+                    node_modules/.bin/netlify deploy \
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID \
                       --dir=. \

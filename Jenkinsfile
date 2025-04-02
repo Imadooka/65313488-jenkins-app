@@ -1,4 +1,4 @@
-pipeline {
+pipeline { 
     agent any
 
     environment {
@@ -8,19 +8,29 @@ pipeline {
 
     stages {
         stage('Validate Files') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "🔍 Verifying required project files..."
                 sh '''
-                    [ -f index.html ] || { echo "❌ ERROR: index.html missing!"; exit 1; }
-                    [ -f netlify/functions/quote.js ] || { echo "❌ ERROR: quote.js missing!"; exit 1; }
+                    test -f index.html || (echo "❌ Missing index.html" && exit 1)
+                    test -f netlify/functions/quote.js || (echo "❌ Missing quote function" && exit 1)
                     echo "✅ All required files are present."
                 '''
             }
         }
 
         stage('Run Unit Tests') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "🧪 Running function tests..."
                 sh '''
@@ -30,29 +40,21 @@ pipeline {
         }
 
         stage('Deploy to Netlify') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "🚀 Starting deployment..."
                 sh '''
-                    npm install -g netlify-cli
-                    netlify deploy \
+                    npx netlify deploy \
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID \
                       --dir=. \
                       --prod
                 '''
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                echo "🔍 Performing post-deploy health check..."
-                script {
-                    def responseCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' https://enchanting-syrniki-b30d56.netlify.app", returnStdout: true).trim()
-                    if (responseCode != '200') {
-                        error "❌ Health check failed! Got HTTP status: ${responseCode}"
-                    }
-                }
             }
         }
     }

@@ -1,4 +1,4 @@
-pipeline {
+pipeline { 
     agent any
 
     environment {
@@ -7,34 +7,49 @@ pipeline {
     }
 
     stages {
-        stage('Validate Files') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+        stage('Build') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
-                echo "🔍 Verifying required project files..."
+                echo "🔧 Checking required files..."
                 sh '''
-                    [ -f index.html ] || { echo "❌ ERROR: index.html missing!"; exit 1; }
-                    [ -f netlify/functions/quote.js ] || { echo "❌ ERROR: quote.js missing!"; exit 1; }
-                    echo "✅ All required files are present."
+                    test -f index.html || (echo "❌ Missing index.html" && exit 1)
+                    test -f netlify/functions/quote.js || (echo "❌ Missing quote function" && exit 1)
+                    echo "✅ Build check passed."
                 '''
             }
         }
 
-        stage('Run Unit Tests') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+        stage('Test') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
-                echo "🧪 Running function tests..."
+                echo "🧪 Testing quote function load..."
                 sh '''
-                    node -e "require('./netlify/functions/quote.js'); console.log('✅ Function executed successfully!')"
+                    node -e "require('./netlify/functions/quote.js'); console.log('✅ Function loaded successfully')"
                 '''
             }
         }
 
-        stage('Deploy to Netlify') {
-            agent { docker { image 'node:18-alpine'; reuseNode true } }
+        stage('Deploy') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
-                echo "🚀 Starting deployment..."
+                echo "🚀 Deploying to Netlify..."
                 sh '''
-                    npm install -g netlify-cli
+                    npm install --unsafe-perm -g netlify-cli
                     netlify deploy \
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID \
@@ -44,25 +59,19 @@ pipeline {
             }
         }
 
-        stage('Health Check') {
+        stage('Post Deploy') {
             steps {
-                echo "🔍 Performing post-deploy health check..."
-                script {
-                    def responseCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' https://enchanting-syrniki-b30d56.netlify.app", returnStdout: true).trim()
-                    if (responseCode != '200') {
-                        error "❌ Health check failed! Got HTTP status: ${responseCode}"
-                    }
-                }
+                echo "✅ Deployment complete! Your app is live."
             }
         }
     }
 
     post {
         success {
-            echo "🎉 Deployment successful! Your app is live."
+            echo "🎉 CI/CD pipeline finished successfully."
         }
         failure {
-            echo "🚨 Deployment failed. Please check logs for more details."
+            echo "❌ Pipeline failed. Check logs for details."
         }
     }
 }

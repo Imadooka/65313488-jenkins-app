@@ -8,7 +8,7 @@ pipeline {
 
     stages {
         stage('Validate Files') {
-            agent { docker { image 'node:18-alpine' reuseNode true } }
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
                 echo "🔍 Verifying required project files..."
                 sh '''
@@ -20,7 +20,7 @@ pipeline {
         }
 
         stage('Run Unit Tests') {
-            agent { docker { image 'node:18-alpine' reuseNode true } }
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
                 echo "🧪 Running function tests..."
                 sh '''
@@ -30,7 +30,7 @@ pipeline {
         }
 
         stage('Deploy to Netlify') {
-            agent { docker { image 'node:18-alpine' reuseNode true } }
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
                 echo "🚀 Starting deployment..."
                 retry(2) {

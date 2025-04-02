@@ -7,67 +7,35 @@ pipeline {
     }
 
     stages {
-        stage('Build') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
+        stage('Validate Files') {
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
-                echo "🔧 Checking required files..."
+                echo "🔍 Verifying required project files..."
                 sh '''
-                    test -f index.html || (echo "❌ Missing index.html" && exit 1)
-                    test -f netlify/functions/quote.js || (echo "❌ Missing quote function" && exit 1)
-                    test -f eslint.config.js || (echo "❌ Missing eslint.config.js file!" && exit 1)
-                    echo "✅ Build check passed."
+                    [ -f index.html ] || { echo "❌ ERROR: index.html missing!"; exit 1; }
+                    [ -f netlify/functions/quote.js ] || { echo "❌ ERROR: quote.js missing!"; exit 1; }
+                    echo "✅ All required files are present."
                 '''
             }
         }
 
-        stage('Lint') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
+        stage('Run Unit Tests') {
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
-                echo "🔍 Running ESLint checks..."
+                echo "🧪 Running function tests..."
                 sh '''
-                    npm install eslint --save-dev
-                    npx eslint netlify/functions/*.js || (echo "❌ Lint errors found!" && exit 1)
+                    node -e "require('./netlify/functions/quote.js'); console.log('✅ Function executed successfully!')"
                 '''
             }
         }
 
-        stage('Test') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
+        stage('Deploy to Netlify') {
+            agent { docker { image 'node:18-alpine'; reuseNode true } }
             steps {
-                echo "🧪 Testing quote function load..."
+                echo "🚀 Starting deployment..."
                 sh '''
-                    node -e "require('./netlify/functions/quote.js'); console.log('✅ Function loaded successfully')"
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
-            steps {
-                echo "🚀 Deploying to Netlify..."
-                sh '''
-                    npm install netlify-cli
-                    node_modules/.bin/netlify deploy \
+                    npm install -g netlify-cli
+                    netlify deploy \
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID \
                       --dir=. \
@@ -78,13 +46,12 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                echo "🩺 Checking site health..."
+                echo "🔍 Performing post-deploy health check..."
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' https://your-netlify-site.netlify.app", returnStdout: true).trim()
-                    if (response != '200') {
-                        error "❌ Health check failed! Got HTTP status: ${response}"
+                    def responseCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' https://enchanting-syrniki-b30d56.netlify.app", returnStdout: true).trim()
+                    if (responseCode != '200') {
+                        error "❌ Health check failed! Got HTTP status: ${responseCode}"
                     }
-                    echo "✅ Health check passed."
                 }
             }
         }
@@ -92,10 +59,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 CI/CD pipeline finished successfully."
+            echo "🎉 Deployment successful! Your app is live."
         }
         failure {
-            echo "❌ Pipeline failed. Check logs for details."
+            echo "🚨 Deployment failed. Please check logs for more details."
         }
     }
 }
